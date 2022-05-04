@@ -1059,8 +1059,11 @@ namespace Grammophone.Domos.AspNet.Identity
 		{
 			try
 			{
-				return
-					(RegistrationProvider)Enum.Parse(typeof(RegistrationProvider), login.LoginProvider, true);
+				if (login.LoginProvider == "https://appleid.apple.com")
+					return (RegistrationProvider)Enum.Parse(typeof(RegistrationProvider), "Apple", true);
+				else
+					return
+						(RegistrationProvider)Enum.Parse(typeof(RegistrationProvider), login.LoginProvider, true);
 			}
 			catch (Exception ex)
 			{

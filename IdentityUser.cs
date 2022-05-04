@@ -94,7 +94,14 @@ namespace Grammophone.Domos.AspNet.Identity
 
 			foreach (var registration in this.DomainUser.Registrations)
 			{
-				loginInfos.Add(new UserLoginInfo(registration.Provider.ToString(), registration.ProviderKey));
+				if (registration.Provider == RegistrationProvider.Apple)
+				{
+					loginInfos.Add(new UserLoginInfo("https://appleid.apple.com", registration.ProviderKey));
+				}
+				else
+				{
+					loginInfos.Add(new UserLoginInfo(registration.Provider.ToString(), registration.ProviderKey));
+				}
 			}
 
 			return loginInfos;
