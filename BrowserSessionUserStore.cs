@@ -146,15 +146,28 @@ namespace Grammophone.Domos.AspNet.Identity
 			if (user == null) throw new ArgumentNullException(nameof(user));
 
 			BrowserSession browserSession = null;
+			ClientIpAddress clientIpAddress = null;
 
-			if (browserFingerPrint == null)
-				browserFingerPrint = Guid.NewGuid().ToString();
-			else
-				browserSession = user.DomainUser.Sessions.Where(bs => bs.FingerPrint == browserFingerPrint).FirstOrDefault();
+			// Get client info
+			string userAgentString = context.Request?.Headers?.Get("User-Agent");
 
-			//get client info
-			var userAgentString = context.Request.Headers.Get("User-Agent");
-			var ipAddress = context.Request.RemoteIpAddress;
+			string ipAddress = context.Request?.RemoteIpAddress;
+
+			if (browserFingerPrint != null)
+			{
+				var query = from bs in this.DomainContainer.BrowserSessions
+										where bs.FingerPrint == browserFingerPrint && user.DomainUser.ID == bs.UserID
+										select new
+										{
+											BrowserSession = bs,
+											ClientIPAddress = bs.IPAddresses.Where(ipa => ipa.IpAddress == ipAddress).OrderByDescending(ipa => ipa.LastSeen).FirstOrDefault()
+										};
+
+				var result = await query.FirstOrDefaultAsync();
+
+				browserSession = result.BrowserSession;
+				clientIpAddress = result.ClientIPAddress;
+			}
 
 			if (browserSession == null) //first time
 			{
@@ -170,40 +183,12 @@ namespace Grammophone.Domos.AspNet.Identity
 					
 					if (!string.IsNullOrEmpty(ipAddress))
 					{
-						ClientIpAddress clientIpAddress = new ClientIpAddress
-						{
-							IpAddress = ipAddress,
-							LastSeen = DateTime.UtcNow
-						};
-
-						//find locatin info
-						try
-						{
-							IPAddress ipadr = IPAddress.Parse(ipAddress);
-
-							// check if we are in a dev environment as the client will be the same machine
-							if (IPAddress.IsLoopback(ipadr))
-							{
-								ipadr = IPAddress.Parse("31.14.242.226");
-							}
-
-							var cache = this.Settings.Resolve<IPLocation.Caching.LocationCache>();
-							var location = await cache.GetLocationAsync(ipadr);
-
-							clientIpAddress.City = location.City.Name;
-							clientIpAddress.Region = location.LastSubdivision.Name;
-							clientIpAddress.Country = location.Country.Name;
-							clientIpAddress.RawIpServiceData = location.Response;
-						}
-						catch (Exception ex)
-						{
-							Trace.TraceWarning($"Could not parse IP address {ipAddress}, reason: {ex.Message}.");
-						}
+						clientIpAddress = await CreateClientIpAddressAsync(ipAddress);
 
 						browserSession.IPAddresses.Add(clientIpAddress);
 					}
 
-					browserSession.FingerPrint = browserFingerPrint;
+					browserSession.FingerPrint = Guid.NewGuid().ToString();
 
 					browserSession.SecurityStamp = Guid.NewGuid().ToString();
 					browserSession.LastSeenOn = DateTime.UtcNow;
@@ -228,46 +213,15 @@ namespace Grammophone.Domos.AspNet.Identity
 					browserSession.LastSeenOn = DateTime.UtcNow;
 
 					//if first seen in this address.
-					if (!browserSession.IPAddresses.Any(a => a.IpAddress == ipAddress))
+					if (clientIpAddress == null && ipAddress != null)
 					{
-						ClientIpAddress clientIpAddress = new ClientIpAddress
-						{
-							IpAddress = ipAddress,
-							LastSeen = DateTime.UtcNow
-						};
-
-						//find location info
-						try
-						{
-							IPAddress ipadr = IPAddress.Parse(ipAddress);
-
-							// check if we are in a dev environment as the client will be the same machine
-							if (IPAddress.IsLoopback(ipadr))
-							{
-								ipadr = IPAddress.Parse("31.14.242.226");
-							}
-
-							var cache = this.Settings.Resolve<IPLocation.Caching.LocationCache>();
-							var location = await cache.GetLocationAsync(ipadr);
-
-							clientIpAddress.City = location.City.Name;
-							clientIpAddress.Region = location.LastSubdivision.Name;
-							clientIpAddress.Country = location.Country.Name;
-							clientIpAddress.RawIpServiceData = location.Response;
-						}
-						catch (Exception ex)
-						{
-							Trace.TraceWarning($"Could not parse IP address {ipAddress}, reason: {ex.Message}.");
-						}
+						clientIpAddress = await CreateClientIpAddressAsync(ipAddress);
 
 						browserSession.IPAddresses.Add(clientIpAddress);
 					}
 					else
 					{
-						var ipAddressToBeUpdated = browserSession.IPAddresses.Where(ia => ia.IpAddress == ipAddress).FirstOrDefault();
-
-						if (ipAddressToBeUpdated != null)
-							ipAddressToBeUpdated.LastSeen = DateTime.UtcNow;
+						clientIpAddress.LastSeen = DateTime.UtcNow;
 					}
 
 					await transaction.CommitAsync();
@@ -275,6 +229,39 @@ namespace Grammophone.Domos.AspNet.Identity
 			}
 
 			return browserSession;
+		}
+
+		private async Task<ClientIpAddress> CreateClientIpAddressAsync(string ipAddress)
+		{
+			ClientIpAddress clientIpAddress = this.DomainContainer.ClientIpAddresses.Create();
+			clientIpAddress.IpAddress = ipAddress;
+			clientIpAddress.LastSeen = DateTime.UtcNow;
+
+			//find locatin info
+			try
+			{
+				IPAddress ipadr = IPAddress.Parse(ipAddress);
+
+				// check if we are in a dev environment as the client will be the same machine
+				if (IPAddress.IsLoopback(ipadr))
+				{
+					ipadr = IPAddress.Parse("31.14.242.226");
+				}
+
+				var cache = this.Settings.Resolve<IPLocation.Caching.LocationCache>();
+				var location = await cache.GetLocationAsync(ipadr);
+
+				clientIpAddress.City = location.City.Name;
+				clientIpAddress.Region = location.LastSubdivision.Name;
+				clientIpAddress.Country = location.Country.Name;
+				clientIpAddress.RawIpServiceData = location.Response;
+			}
+			catch (Exception ex)
+			{
+				Trace.TraceWarning($"Could not parse IP address {ipAddress}, reason: {ex.Message}.");
+			}
+
+			return clientIpAddress;
 		}
 
 		#endregion
