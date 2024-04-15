@@ -16,12 +16,16 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNet.Identity.Core" Version="2.2.4" />
-  </ItemGroup>
+		<PackageReference Include="Microsoft.Owin" Version="4.2.2" />
+		<PackageReference Include="MyCSharp.HttpUserAgentParser" Version="2.0.2" />
+	</ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Grammophone.Caching\Grammophone.Caching.csproj" />
     <ProjectReference Include="..\Grammophone.DataAccess\Grammophone.DataAccess.csproj" />
     <ProjectReference Include="..\Grammophone.Domos.DataAccess\Grammophone.Domos.DataAccess.csproj" />
     <ProjectReference Include="..\Grammophone.Domos.Domain\Grammophone.Domos.Domain.csproj" />
+    <ProjectReference Include="..\Grammophone.IPLocation.Caching\Grammophone.IPLocation.Caching.csproj" />
+    <ProjectReference Include="..\Grammophone.IPLocation\Grammophone.IPLocation.csproj" />
     <ProjectReference Include="..\Grammophone.Setup\Grammophone.Setup.csproj" />
   </ItemGroup>
 	<ItemGroup>
