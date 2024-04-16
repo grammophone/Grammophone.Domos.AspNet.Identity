@@ -59,7 +59,7 @@ namespace Grammophone.Domos.AspNet.Identity
 
 			if (!String.IsNullOrEmpty(fingerprint))
 			{
-				var browserSession = await TryGetOrCreateBrowserSessionAsync(user.DomainUser.ID, fingerprint);
+				var browserSession = await TryGetOrCreateBrowserSessionAsync(user.DomainUser, fingerprint);
 
 				if (browserSession != null)
 				{
@@ -79,7 +79,7 @@ namespace Grammophone.Domos.AspNet.Identity
 		{
 			string fingerprint = TryFindFingerprintClaim();
 
-			var browserSession = await TryGetOrCreateBrowserSessionAsync(user.DomainUser.ID, fingerprint);
+			var browserSession = await TryGetOrCreateBrowserSessionAsync(user.DomainUser, fingerprint);
 
 			if (browserSession != null)
 			{
@@ -101,9 +101,11 @@ namespace Grammophone.Domos.AspNet.Identity
 		/// Get an existing browser based on the finger print or create a new one.
 		/// </summary>
 		public async Task<BrowserSession> TryGetOrCreateBrowserSessionAsync(
-						long userID,
+						U user,
 						string browserFingerPrint = null)
 		{
+			if (user == null) throw new ArgumentNullException(nameof(user));
+
 			BrowserSession browserSession = null;
 			ClientIpAddress clientIpAddress = null;
 
@@ -115,7 +117,7 @@ namespace Grammophone.Domos.AspNet.Identity
 			if (browserFingerPrint != null)
 			{
 				var query = from bs in this.DomainContainer.BrowserSessions
-										where bs.FingerPrint == browserFingerPrint && userID == bs.UserID
+										where bs.FingerPrint == browserFingerPrint && user.ID == bs.UserID
 										select new
 										{
 											BrowserSession = bs,
@@ -124,8 +126,8 @@ namespace Grammophone.Domos.AspNet.Identity
 
 				var result = await query.FirstOrDefaultAsync();
 
-				browserSession = result.BrowserSession;
-				clientIpAddress = result.ClientIPAddress;
+				browserSession = result?.BrowserSession;
+				clientIpAddress = result?.ClientIPAddress;
 			}
 
 			if (browserSession == null) //first time
@@ -148,13 +150,13 @@ namespace Grammophone.Domos.AspNet.Identity
 						browserSession.IPAddresses.Add(clientIpAddress);
 					}
 
-					browserSession.FingerPrint = Guid.NewGuid().ToString();
+					browserSession.FingerPrint = browserFingerPrint ?? Guid.NewGuid().ToString();
 
-					browserSession.SecurityStamp = Guid.NewGuid().ToString();
+					browserSession.SecurityStamp = user.SecurityStamp;
 					browserSession.LastSeenOn = DateTime.UtcNow;
 					browserSession.FirstSignInOn = DateTime.UtcNow;
 
-					browserSession.UserID = userID;
+					browserSession.UserID = user.ID;
 
 					SetFingerprintClaim(browserSession.FingerPrint);
 

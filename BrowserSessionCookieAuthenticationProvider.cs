@@ -27,28 +27,35 @@ namespace Grammophone.Domos.AspNet.Identity
 		/// </summary>
 		public override async Task ValidateIdentity(CookieValidateIdentityContext context)
 		{
-			string fingerprint = context.Identity.FindFirstValue("fingerprint");
+			bool addedFingerprintClaim = false;
 
-			if (String.IsNullOrEmpty(fingerprint) && context.Identity != null)
+			if (context.Identity != null)
 			{
-				var userManager = context.OwinContext.GetUserManager<US>();
+				context.OwinContext.Environment.Add("ValidatedIdentity", context.Identity);
 
-				if (userManager != null)
+				string fingerprint = context.Identity.FindFirstValue("fingerprint");
+
+				if (String.IsNullOrEmpty(fingerprint))
 				{
-					long userID = context.Identity.GetUserId<long>();
+					context.Identity.AddClaim(new Claim("fingerprint", Guid.NewGuid().ToString()));
 
-					context.OwinContext.Environment.Add("ValidatedIdentity", context.Identity);
+					addedFingerprintClaim = true;
 
-					// If the IUserStore descends from BrowserSessionUserStore, force creating a browser session and adding of the fingerprint claim.
-					await userManager.GetSecurityStampAsync(userID);
+					var userManager = context.OwinContext.GetUserManager<US>();
+
+					if (userManager != null)
+					{
+						long userID = context.Identity.GetUserId<long>();
+
+						// If the IUserStore descends from BrowserSessionUserStore, force creating a browser session and adding of the fingerprint claim.
+						await userManager.GetSecurityStampAsync(userID);
+					}
 				}
 			}
 
 			await base.ValidateIdentity(context);
 
-			fingerprint = context.Identity.FindFirstValue("fingerprint");
-
-			if (String.IsNullOrEmpty(fingerprint) && context.Identity != null)
+			if (addedFingerprintClaim && context.Identity != null) // If not rejected and added fingerprint, update sign-on.
 			{
 				context.OwinContext.Authentication.SignIn(context.Properties, context.Identity);
 			}
