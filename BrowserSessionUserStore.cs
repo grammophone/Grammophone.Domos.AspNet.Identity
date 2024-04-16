@@ -55,20 +55,14 @@ namespace Grammophone.Domos.AspNet.Identity
 		/// <param name="user">The identity user.</param>
 		public override async Task<string> GetSecurityStampAsync(IdentityUser<U> user)
 		{
-			var claimsPrincipal = context.Request?.User as ClaimsPrincipal;
+			string fingerprint = TryFindFingerprintClaim();
 
-			if (claimsPrincipal != null)
+			if (!String.IsNullOrEmpty(fingerprint))
 			{
-				string fingerprint = ((ClaimsIdentity)claimsPrincipal.Identity).FindFirstValue("fingerprint");
+				var browserSession = await TryGetOrCreateBrowserSessionAsync(user.DomainUser.ID, fingerprint);
 
-				if (fingerprint != null)
+				if (browserSession != null)
 				{
-					var browserSessionQuery = from bs in this.DomainContainer.BrowserSessions
-																		where bs.UserID == user.DomainUser.ID && bs.FingerPrint == fingerprint
-																		select bs;
-
-					var browserSession = await browserSessionQuery.FirstOrDefaultAsync();
-
 					return browserSession.SecurityStamp;
 				}
 			}
@@ -83,68 +77,33 @@ namespace Grammophone.Domos.AspNet.Identity
 		/// <param name="stamp">The security stamp to set.</param>
 		public override async Task SetSecurityStampAsync(IdentityUser<U> user, string stamp)
 		{
-			var claimsPrincipal = context.Request?.User as ClaimsPrincipal;
+			string fingerprint = TryFindFingerprintClaim();
 
-			if (claimsPrincipal != null)
+			var browserSession = await TryGetOrCreateBrowserSessionAsync(user.DomainUser.ID, fingerprint);
+
+			if (browserSession != null)
 			{
-				string fingerprint = ((ClaimsIdentity)claimsPrincipal.Identity).FindFirstValue("fingerprint");
+				browserSession.SecurityStamp = stamp;
 
-				var browserSession = await TryGetOrCreateBrowserSessionAsync(user, fingerprint);
-
-				if (browserSession != null)
-				{
-					browserSession.SecurityStamp = stamp;
+				await this.DomainContainer.SaveChangesAsync();
 					
-					return;
-				}
+				return;
 			}
-
+			
 			await base.SetSecurityStampAsync(user, stamp);
 		}
 
 		#endregion
 
-		#region Protected methods
-
-		/// <summary>
-		/// Parse the 'User-Agent' header and set the <see cref="BrowserSession.Browser"/> and <see cref="BrowserSession.OperatingSystem"/>
-		/// propterties.
-		/// </summary>
-		/// <param name="userAgent">The value of the 'User-Agent' header.</param>
-		/// <param name="browserSession">The browser session to update.</param>
-		protected virtual Task ParseUserAgentAsync(string userAgent, BrowserSession browserSession)
-		{
-			if (userAgent == null) throw new ArgumentNullException(nameof(userAgent));
-			if (browserSession == null) throw new ArgumentNullException(nameof(browserSession));
-
-			var userAgentInfo = HttpUserAgentParser.Parse(userAgent);
-			
-			string operatingSystem = userAgentInfo.Platform.HasValue ? userAgentInfo.Platform.Value.Name : null;
-			string browser = $"{userAgentInfo.Name} {userAgentInfo.Version}";
-
-			browserSession.OperatingSystem = operatingSystem;
-			browserSession.Browser = browser;
-
-			return Task.CompletedTask;
-		}
-
-		#endregion
-
-		#region Private methods
+		#region Public methods
 
 		/// <summary>
 		/// Get an existing browser based on the finger print or create a new one.
 		/// </summary>
-		/// <param name="user"></param>
-		/// <param name="browserFingerPrint"></param>
-		/// <returns></returns>
-		/// <exception cref="ArgumentNullException"></exception>
-		private async Task<BrowserSession> TryGetOrCreateBrowserSessionAsync(
-						IdentityUser<U> user,
+		public async Task<BrowserSession> TryGetOrCreateBrowserSessionAsync(
+						long userID,
 						string browserFingerPrint = null)
 		{
-			if (user == null) throw new ArgumentNullException(nameof(user));
-
 			BrowserSession browserSession = null;
 			ClientIpAddress clientIpAddress = null;
 
@@ -156,7 +115,7 @@ namespace Grammophone.Domos.AspNet.Identity
 			if (browserFingerPrint != null)
 			{
 				var query = from bs in this.DomainContainer.BrowserSessions
-										where bs.FingerPrint == browserFingerPrint && user.DomainUser.ID == bs.UserID
+										where bs.FingerPrint == browserFingerPrint && userID == bs.UserID
 										select new
 										{
 											BrowserSession = bs,
@@ -175,12 +134,13 @@ namespace Grammophone.Domos.AspNet.Identity
 				{
 					//create browser session.
 					browserSession = this.DomainContainer.BrowserSessions.Create();
+					this.DomainContainer.BrowserSessions.Add(browserSession);
 
 					if (userAgentString != null)
 					{
 						await ParseUserAgentAsync(userAgentString, browserSession);
 					}
-					
+
 					if (!string.IsNullOrEmpty(ipAddress))
 					{
 						clientIpAddress = await CreateClientIpAddressAsync(ipAddress);
@@ -194,7 +154,9 @@ namespace Grammophone.Domos.AspNet.Identity
 					browserSession.LastSeenOn = DateTime.UtcNow;
 					browserSession.FirstSignInOn = DateTime.UtcNow;
 
-					user.DomainUser.Sessions.Add(browserSession);
+					browserSession.UserID = userID;
+
+					SetFingerprintClaim(browserSession.FingerPrint);
 
 					await transaction.CommitAsync();
 				}
@@ -231,6 +193,36 @@ namespace Grammophone.Domos.AspNet.Identity
 			return browserSession;
 		}
 
+		#endregion
+
+		#region Protected methods
+
+		/// <summary>
+		/// Parse the 'User-Agent' header and set the <see cref="BrowserSession.Browser"/> and <see cref="BrowserSession.OperatingSystem"/>
+		/// propterties.
+		/// </summary>
+		/// <param name="userAgent">The value of the 'User-Agent' header.</param>
+		/// <param name="browserSession">The browser session to update.</param>
+		protected virtual Task ParseUserAgentAsync(string userAgent, BrowserSession browserSession)
+		{
+			if (userAgent == null) throw new ArgumentNullException(nameof(userAgent));
+			if (browserSession == null) throw new ArgumentNullException(nameof(browserSession));
+
+			var userAgentInfo = HttpUserAgentParser.Parse(userAgent);
+			
+			string operatingSystem = userAgentInfo.Platform.HasValue ? userAgentInfo.Platform.Value.Name : null;
+			string browser = $"{userAgentInfo.Name} {userAgentInfo.Version}";
+
+			browserSession.OperatingSystem = operatingSystem;
+			browserSession.Browser = browser;
+
+			return Task.CompletedTask;
+		}
+
+		#endregion
+
+		#region Private methods
+
 		private async Task<ClientIpAddress> CreateClientIpAddressAsync(string ipAddress)
 		{
 			ClientIpAddress clientIpAddress = this.DomainContainer.ClientIpAddresses.Create();
@@ -262,6 +254,56 @@ namespace Grammophone.Domos.AspNet.Identity
 			}
 
 			return clientIpAddress;
+		}
+
+		private string TryFindFingerprintClaim(ClaimsIdentity identity) => identity?.FindFirstValue("fingerprint");
+
+		private string TryFindFingerprintClaim()
+		{
+			string fingerprint = TryFindFingerprintClaim(System.Threading.Thread.CurrentPrincipal.Identity as ClaimsIdentity);
+
+			if (fingerprint != null) return fingerprint;
+
+			fingerprint = TryFindFingerprintClaim(context.Authentication?.User?.Identity as ClaimsIdentity);
+
+			if (fingerprint != null) return fingerprint;
+
+			if (context.Environment.TryGetValue("ValidatedIdentity", out object identityObject))
+			{
+				fingerprint = TryFindFingerprintClaim(identityObject as ClaimsIdentity);
+
+				if (fingerprint != null) return fingerprint;
+			}
+
+			return null;
+		}
+
+		private void SetFingerprintClaim(ClaimsIdentity identity, string fingerprint)
+		{
+			if (identity == null) return;
+
+			var existingClaims = identity.Claims.Where(c => c.Type == "fingerprint").ToArray();
+
+			foreach (var existingClaim in existingClaims)
+			{
+				identity.RemoveClaim(existingClaim);
+			}
+
+			identity.AddClaim(new Claim("fingerprint", fingerprint));
+		}
+
+		private void SetFingerprintClaim(string fingerprint)
+		{
+			if (fingerprint == null) return;
+
+			SetFingerprintClaim(System.Threading.Thread.CurrentPrincipal.Identity as ClaimsIdentity, fingerprint);
+
+			SetFingerprintClaim(context.Authentication?.User?.Identity as ClaimsIdentity, fingerprint);
+
+			if (context.Environment.TryGetValue("ValidatedIdentity", out object identityObject))
+			{
+				SetFingerprintClaim(identityObject as ClaimsIdentity, fingerprint);
+			}
 		}
 
 		#endregion
