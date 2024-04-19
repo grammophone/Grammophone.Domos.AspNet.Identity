@@ -11,8 +11,9 @@ using Microsoft.Owin;
 namespace Grammophone.Domos.AspNet.Identity
 {
 	/// <summary>
-	/// User manager that uses a user store derived from <see cref="BrowserSessionUserStore{U}"/>
-	/// and setting up <see cref="BrowserSessionClaimsIdentityFactory{U}"/> to be used.
+	/// User manager that uses a user store derived from <see cref="BrowserSessionUserStore{U}"/>,
+	/// exposes browser session methods and 
+	/// uses <see cref="BrowserSessionClaimsIdentityFactory{U}"/> to create session fingerprint claims.
 	/// </summary>
 	/// <typeparam name="U">The user, derived from <see cref="User"/>.</typeparam>
 	public class BrowserSessionUserManager<U> : UserManager<IdentityUser<U>, long>
