@@ -17,13 +17,13 @@ namespace Grammophone.Domos.AspNet.Identity
 	public class BrowserSessionClaimsIdentityFactory<U> : ClaimsIdentityFactory<IdentityUser<U>, long>
 		where U : User
 	{
-		#region PRivate fields
+		#region Private fields
 
 		private readonly IOwinContext context;
 
 		#endregion
 
-		#region construction
+		#region Construction
 
 		/// <summary>
 		/// Create.
