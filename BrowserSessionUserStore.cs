@@ -204,7 +204,7 @@ namespace Grammophone.Domos.AspNet.Identity
 		/// </summary>
 		/// <param name="user">The identity user to be logged of.</param>
 		/// <param name="fingerprint">The fingerprint of the session to log off.</param>
-		public async Task LogoffBrowserSessionAsync(IdentityUser<U> user, string fingerprint)
+		public async Task LogOffBrowserSessionAsync(IdentityUser<U> user, string fingerprint)
 		{
 			if (user == null) throw new ArgumentNullException(nameof(user));
 
@@ -234,7 +234,7 @@ namespace Grammophone.Domos.AspNet.Identity
 		/// Log off a browser session.
 		/// </summary>
 		/// <param name="sessionID">The ID of the browser session.</param>
-		public async Task LogoffBrowserSessionAsync(long sessionID)
+		public async Task LogOffBrowserSessionAsync(long sessionID)
 		{
 			var browserSession = await this.DomainContainer.BrowserSessions.Where(bs => bs.ID == sessionID).FirstOrDefaultAsync();
 

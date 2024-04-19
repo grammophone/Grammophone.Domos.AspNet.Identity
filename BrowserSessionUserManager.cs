@@ -54,13 +54,13 @@ namespace Grammophone.Domos.AspNet.Identity
 		/// <param name="userID">The ID of the user to be logged of.</param>
 		/// <param name="fingerprint">The fingerprint of the session to log off.</param>
 		/// <exception cref="InvalidOperationException">Thrown when no user was found having the given ID.</exception>
-		public async Task LogoffBrowserSessionAsync(long userID, string fingerprint)
+		public async Task LogOffBrowserSessionAsync(long userID, string fingerprint)
 		{
 			var identityUser = await this.Store.FindByIdAsync(userID);
 
 			if (identityUser == null) throw new InvalidOperationException($"The user with ID {userID} was not found.");
 
-			await this.Store.LogoffBrowserSessionAsync(identityUser, fingerprint);
+			await this.Store.LogOffBrowserSessionAsync(identityUser, fingerprint);
 		}
 
 		/// <summary>
@@ -68,7 +68,7 @@ namespace Grammophone.Domos.AspNet.Identity
 		/// </summary>
 		/// <param name="sessionID">The ID of the browser session.</param>
 		public Task LogOffBrowserSessionAsync(long sessionID)
-			=> this.Store.LogoffBrowserSessionAsync(sessionID);
+			=> this.Store.LogOffBrowserSessionAsync(sessionID);
 
 		/// <summary>
 		/// Log off all active sessions of a user.
