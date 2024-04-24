@@ -63,6 +63,8 @@ namespace Grammophone.Domos.AspNet.Identity
 
 				if (browserSession != null)
 				{
+					await OnGettingSecurityStampAsync(user.DomainUser);
+
 					return browserSession.SecurityStamp;
 				}
 			}
@@ -84,6 +86,8 @@ namespace Grammophone.Domos.AspNet.Identity
 			if (browserSession != null)
 			{
 				browserSession.SecurityStamp = stamp;
+
+				await OnSettingSecurityStampAsync(user.DomainUser);
 
 				await this.DomainContainer.SaveChangesAsync();
 					
