@@ -4,12 +4,14 @@ using System.Data.Entity;
 using System.Diagnostics;
 using System.Linq;
 using System.Net;
+using System.Runtime.Remoting.Messaging;
 using System.Security.Claims;
 using System.Text;
 using System.Threading.Tasks;
 using Grammophone.Domos.DataAccess;
 using Grammophone.Domos.Domain;
 using Microsoft.AspNet.Identity;
+using Microsoft.Owin;
 using MyCSharp.HttpUserAgentParser;
 
 namespace Grammophone.Domos.AspNet.Identity
@@ -114,8 +116,6 @@ namespace Grammophone.Domos.AspNet.Identity
 			ClientIpAddress clientIpAddress = null;
 
 			// Get client info
-			string userAgentString = context.Request?.Headers?.Get("User-Agent");
-
 			string ipAddress = context.Request?.RemoteIpAddress;
 
 			if (browserFingerPrint != null)
@@ -142,9 +142,20 @@ namespace Grammophone.Domos.AspNet.Identity
 					browserSession = this.DomainContainer.BrowserSessions.Create();
 					this.DomainContainer.BrowserSessions.Add(browserSession);
 
-					if (userAgentString != null)
+					var headers = context.Request?.Headers;
+
+					if (headers != null)
 					{
-						await ParseUserAgentAsync(userAgentString, browserSession);
+						await DetectSessionDeviceAsync(headers, browserSession);
+
+						string userAgentString = headers?.Get("User-Agent");
+
+						if (userAgentString != null)
+						{
+#pragma warning disable CS0618 // Type or member is obsolete
+							await ParseUserAgentAsync(userAgentString, browserSession);
+#pragma warning restore CS0618 // Type or member is obsolete
+						}
 					}
 
 					if (!string.IsNullOrEmpty(ipAddress))
@@ -292,18 +303,45 @@ namespace Grammophone.Domos.AspNet.Identity
 		/// </summary>
 		/// <param name="userAgent">The value of the 'User-Agent' header.</param>
 		/// <param name="browserSession">The browser session to update.</param>
-		protected virtual Task ParseUserAgentAsync(string userAgent, BrowserSession browserSession)
+		[Obsolete("Override DetectSessionDeviceAsync instead.")]
+		protected virtual Task ParseUserAgentAsync(string userAgent, BrowserSession browserSession) => Task.CompletedTask;
+
+		/// <summary>
+		/// Examine the HTTP response headers and to fill in the device information of the browser session.
+		/// </summary>
+		/// <param name="headers">The response HTTP headers.</param>
+		/// <param name="browserSession">The browser session to fill.</param>
+		protected virtual Task DetectSessionDeviceAsync(IHeaderDictionary headers, BrowserSession browserSession)
 		{
-			if (userAgent == null) throw new ArgumentNullException(nameof(userAgent));
+			if (headers == null) throw new ArgumentNullException(nameof(headers));
 			if (browserSession == null) throw new ArgumentNullException(nameof(browserSession));
 
-			var userAgentInfo = HttpUserAgentParser.Parse(userAgent);
-			
-			string operatingSystem = userAgentInfo.Platform.HasValue ? userAgentInfo.Platform.Value.Name : null;
-			string browser = $"{userAgentInfo.Name} {userAgentInfo.Version}";
+			string userAgent = headers.Get("User-Agent");
 
-			browserSession.OperatingSystem = operatingSystem;
-			browserSession.Browser = browser;
+			if (userAgent != null)
+			{
+				var userAgentInfo = HttpUserAgentParser.Parse(userAgent);
+
+				string operatingSystem = userAgentInfo.Platform.HasValue ? userAgentInfo.Platform.Value.Name : null;
+				string browser = $"{userAgentInfo.Name} {userAgentInfo.Version}";
+
+				browserSession.OperatingSystem = operatingSystem;
+				browserSession.Browser = browser;
+			}
+
+			string platform = headers.Get("Sec-CH-UA-Platform");
+
+			if (platform != null)
+			{
+				browserSession.OperatingSystem = platform;
+
+				string version = headers.Get("Sec-CH-UA-Platform-Version");
+
+				if (version != null)
+				{
+					browserSession.OperatingSystem = $"{platform} {version}";
+				}
+			}
 
 			return Task.CompletedTask;
 		}
