@@ -333,13 +333,13 @@ namespace Grammophone.Domos.AspNet.Identity
 
 			if (platform != null)
 			{
-				browserSession.OperatingSystem = platform;
+				browserSession.OperatingSystem = platform.Trim('"', ' ');
 
 				string version = headers.Get("Sec-CH-UA-Platform-Version");
 
 				if (version != null)
 				{
-					browserSession.OperatingSystem = $"{platform} {version}";
+					browserSession.OperatingSystem = $"{platform.Trim('"', ' ')} {version.Trim('"', ' ')}";
 				}
 			}
 
