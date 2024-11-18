@@ -6,6 +6,7 @@
     <Product>Grammophone.Domos.AspNet.Identity</Product>
     <Copyright>Copyright ©  2016</Copyright>
     <OutputPath>bin\$(Configuration)\</OutputPath>
+		<LangVersion>9.0</LangVersion>
     <DocumentationFile>bin\$(Configuration)\Grammophone.Domos.AspNet.Identity.XML</DocumentationFile>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
