@@ -227,6 +227,8 @@ namespace Grammophone.Domos.AspNet.Identity
 
 			if (string.IsNullOrEmpty(fingerprint)) throw new ArgumentNullException(nameof(fingerprint));
 
+			if (!String.IsNullOrEmpty(TryFindImpersonatingUserName())) return;
+
 			using (var transaction = this.DomainContainer.BeginTransaction())
 			{
 				var browserSession = await this.DomainContainer.BrowserSessions
@@ -253,6 +255,8 @@ namespace Grammophone.Domos.AspNet.Identity
 		/// <param name="sessionID">The ID of the browser session.</param>
 		public async Task LogOffBrowserSessionAsync(long sessionID)
 		{
+			if (!String.IsNullOrEmpty(TryFindImpersonatingUserName())) return;
+
 			var browserSession = await this.DomainContainer.BrowserSessions.Where(bs => bs.ID == sessionID).FirstOrDefaultAsync();
 
 			if (browserSession.IsLoggedOff) return;
