@@ -426,9 +426,9 @@ namespace Grammophone.Domos.AspNet.Identity
 			return clientIpAddress;
 		}
 
-		private string TryFindFingerprintClaim(ClaimsIdentity identity) => identity?.FindFirstValue("fingerprint");
+		private string TryFindFingerprintClaim(ClaimsIdentity identity) => identity?.FindFirstValue(IdentityClaimNames.Fingerprint);
 
-		private string TryFindImpersonatingUserName(ClaimsIdentity identity) => identity?.FindFirstValue("impersonatedBy");
+		private string TryFindImpersonatingUserName(ClaimsIdentity identity) => identity?.FindFirstValue(IdentityClaimNames.ImpersonatedBy);
 
 		private string TryFindFingerprintClaim()
 		{
@@ -452,17 +452,17 @@ namespace Grammophone.Domos.AspNet.Identity
 
 		private string TryFindImpersonatingUserName()
 		{
-			string fingerprint = TryFindFingerprintClaim(System.Threading.Thread.CurrentPrincipal.Identity as ClaimsIdentity);
+			string fingerprint = TryFindImpersonatingUserName(System.Threading.Thread.CurrentPrincipal.Identity as ClaimsIdentity);
 
 			if (fingerprint != null) return fingerprint;
 
-			fingerprint = TryFindFingerprintClaim(context.Authentication?.User?.Identity as ClaimsIdentity);
+			fingerprint = TryFindImpersonatingUserName(context.Authentication?.User?.Identity as ClaimsIdentity);
 
 			if (fingerprint != null) return fingerprint;
 
 			if (context.Environment.TryGetValue("ValidatedIdentity", out object identityObject))
 			{
-				fingerprint = TryFindFingerprintClaim(identityObject as ClaimsIdentity);
+				fingerprint = TryFindImpersonatingUserName(identityObject as ClaimsIdentity);
 
 				if (fingerprint != null) return fingerprint;
 			}
@@ -474,14 +474,14 @@ namespace Grammophone.Domos.AspNet.Identity
 		{
 			if (identity == null) return;
 
-			var existingClaims = identity.Claims.Where(c => c.Type == "fingerprint").ToArray();
+			var existingClaims = identity.Claims.Where(c => c.Type == IdentityClaimNames.Fingerprint).ToArray();
 
 			foreach (var existingClaim in existingClaims)
 			{
 				identity.RemoveClaim(existingClaim);
 			}
 
-			identity.AddClaim(new Claim("fingerprint", fingerprint));
+			identity.AddClaim(new Claim(IdentityClaimNames.Fingerprint, fingerprint));
 		}
 
 		private void SetFingerprintClaim(string fingerprint)

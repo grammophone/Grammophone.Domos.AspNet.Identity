@@ -58,11 +58,11 @@ namespace Grammophone.Domos.AspNet.Identity
 
 				if (existingClaimsIdentity != null)
 				{
-					string fingerprint = existingClaimsIdentity.FindFirstValue("fingerprint");
+					string fingerprint = existingClaimsIdentity.FindFirstValue(IdentityClaimNames.Fingerprint);
 
 					if (fingerprint != null)
 					{
-						newIdentity.AddClaim(new Claim("fingerprint", fingerprint));
+						newIdentity.AddClaim(new Claim(IdentityClaimNames.Fingerprint, fingerprint));
 					}
 				}
 			}

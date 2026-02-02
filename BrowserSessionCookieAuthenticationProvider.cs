@@ -33,11 +33,11 @@ namespace Grammophone.Domos.AspNet.Identity
 			{
 				context.OwinContext.Environment.Add("ValidatedIdentity", context.Identity);
 
-				string fingerprint = context.Identity.FindFirstValue("fingerprint");
+				string fingerprint = context.Identity.FindFirstValue(IdentityClaimNames.Fingerprint);
 
 				if (String.IsNullOrEmpty(fingerprint))
 				{
-					context.Identity.AddClaim(new Claim("fingerprint", Guid.NewGuid().ToString()));
+					context.Identity.AddClaim(new Claim(IdentityClaimNames.Fingerprint, Guid.NewGuid().ToString()));
 
 					addedFingerprintClaim = true;
 
