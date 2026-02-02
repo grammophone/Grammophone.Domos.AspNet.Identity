@@ -59,7 +59,7 @@ namespace Grammophone.Domos.AspNet.Identity
 		{
 			string fingerprint = TryFindFingerprintClaim();
 
-			if (!String.IsNullOrEmpty(fingerprint))
+			if (!String.IsNullOrEmpty(fingerprint) && String.IsNullOrEmpty(TryFindImpersonatingUserName()))
 			{
 				var browserSession = await TryGetOrCreateBrowserSessionAsync(user.DomainUser, fingerprint);
 
@@ -85,7 +85,7 @@ namespace Grammophone.Domos.AspNet.Identity
 
 			var browserSession = await TryGetOrCreateBrowserSessionAsync(user.DomainUser, fingerprint);
 
-			if (browserSession != null)
+			if (browserSession != null && String.IsNullOrEmpty(TryFindImpersonatingUserName()))
 			{
 				browserSession.SecurityStamp = stamp;
 
@@ -111,6 +111,8 @@ namespace Grammophone.Domos.AspNet.Identity
 						string browserFingerPrint = null)
 		{
 			if (user == null) throw new ArgumentNullException(nameof(user));
+
+			if (!String.IsNullOrEmpty(TryFindImpersonatingUserName())) return null;
 
 			BrowserSession browserSession = null;
 			ClientIpAddress clientIpAddress = null;
@@ -422,7 +424,29 @@ namespace Grammophone.Domos.AspNet.Identity
 
 		private string TryFindFingerprintClaim(ClaimsIdentity identity) => identity?.FindFirstValue("fingerprint");
 
+		private string TryFindImpersonatingUserName(ClaimsIdentity identity) => identity?.FindFirstValue("impersonatedBy");
+
 		private string TryFindFingerprintClaim()
+		{
+			string fingerprint = TryFindFingerprintClaim(System.Threading.Thread.CurrentPrincipal.Identity as ClaimsIdentity);
+
+			if (fingerprint != null) return fingerprint;
+
+			fingerprint = TryFindFingerprintClaim(context.Authentication?.User?.Identity as ClaimsIdentity);
+
+			if (fingerprint != null) return fingerprint;
+
+			if (context.Environment.TryGetValue("ValidatedIdentity", out object identityObject))
+			{
+				fingerprint = TryFindFingerprintClaim(identityObject as ClaimsIdentity);
+
+				if (fingerprint != null) return fingerprint;
+			}
+
+			return null;
+		}
+
+		private string TryFindImpersonatingUserName()
 		{
 			string fingerprint = TryFindFingerprintClaim(System.Threading.Thread.CurrentPrincipal.Identity as ClaimsIdentity);
 
