@@ -64,6 +64,13 @@ namespace Grammophone.Domos.AspNet.Identity
 					{
 						newIdentity.AddClaim(new Claim(IdentityClaimNames.Fingerprint, fingerprint));
 					}
+
+					string impersonatedBy = existingClaimsIdentity.FindFirstValue(IdentityClaimNames.ImpersonatedBy);
+
+					if (impersonatedBy != null)
+					{
+						newIdentity.AddClaim(new Claim(IdentityClaimNames.ImpersonatedBy, impersonatedBy));
+					}
 				}
 			}
 

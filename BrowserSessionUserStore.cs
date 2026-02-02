@@ -452,19 +452,19 @@ namespace Grammophone.Domos.AspNet.Identity
 
 		private string TryFindImpersonatingUserName()
 		{
-			string fingerprint = TryFindImpersonatingUserName(System.Threading.Thread.CurrentPrincipal.Identity as ClaimsIdentity);
+			string impersonatingUserName = TryFindImpersonatingUserName(System.Threading.Thread.CurrentPrincipal.Identity as ClaimsIdentity);
 
-			if (fingerprint != null) return fingerprint;
+			if (impersonatingUserName != null) return impersonatingUserName;
 
-			fingerprint = TryFindImpersonatingUserName(context.Authentication?.User?.Identity as ClaimsIdentity);
+			impersonatingUserName = TryFindImpersonatingUserName(context.Authentication?.User?.Identity as ClaimsIdentity);
 
-			if (fingerprint != null) return fingerprint;
+			if (impersonatingUserName != null) return impersonatingUserName;
 
 			if (context.Environment.TryGetValue("ValidatedIdentity", out object identityObject))
 			{
-				fingerprint = TryFindImpersonatingUserName(identityObject as ClaimsIdentity);
+				impersonatingUserName = TryFindImpersonatingUserName(identityObject as ClaimsIdentity);
 
-				if (fingerprint != null) return fingerprint;
+				if (impersonatingUserName != null) return impersonatingUserName;
 			}
 
 			return null;
