@@ -112,7 +112,9 @@ namespace Grammophone.Domos.AspNet.Identity
 		{
 			if (user == null) throw new ArgumentNullException(nameof(user));
 
-			if (!String.IsNullOrEmpty(TryFindImpersonatingUserName())) return null;
+			if (!String.IsNullOrEmpty(TryFindImpersonatingUserName())) return null; // If there is an impersonation, do not create a browser session.
+
+			if (context.Authentication?.User?.Identity?.Name != user.UserName) return null; // If the current user is not the given user, do not create a browser session.
 
 			BrowserSession browserSession = null;
 			ClientIpAddress clientIpAddress = null;
