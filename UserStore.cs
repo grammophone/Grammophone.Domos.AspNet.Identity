@@ -1,9 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Data.Entity;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Grammophone.DataAccess.QueryExtensions;
 using Microsoft.AspNet.Identity;
 using Grammophone.Domos.DataAccess;
 using Grammophone.Domos.Domain;
