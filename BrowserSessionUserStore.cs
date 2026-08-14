@@ -426,49 +426,11 @@ namespace Grammophone.Domos.AspNet.Identity
 			return clientIpAddress;
 		}
 
-		private string TryFindFingerprintClaim(ClaimsIdentity identity) => identity?.FindFirstValue(IdentityClaimNames.Fingerprint);
-
-		private string TryFindImpersonatingUserName(ClaimsIdentity identity) => identity?.FindFirstValue(IdentityClaimNames.ImpersonatedBy);
-
 		private string TryFindFingerprintClaim()
-		{
-			string fingerprint = TryFindFingerprintClaim(System.Threading.Thread.CurrentPrincipal.Identity as ClaimsIdentity);
-
-			if (fingerprint != null) return fingerprint;
-
-			fingerprint = TryFindFingerprintClaim(context.Authentication?.User?.Identity as ClaimsIdentity);
-
-			if (fingerprint != null) return fingerprint;
-
-			if (context.Environment.TryGetValue("ValidatedIdentity", out object identityObject))
-			{
-				fingerprint = TryFindFingerprintClaim(identityObject as ClaimsIdentity);
-
-				if (fingerprint != null) return fingerprint;
-			}
-
-			return null;
-		}
+			=> BrowserSessionClaimAccessor.FindFirstValue(context, IdentityClaimNames.Fingerprint);
 
 		private string TryFindImpersonatingUserName()
-		{
-			string impersonatingUserName = TryFindImpersonatingUserName(System.Threading.Thread.CurrentPrincipal.Identity as ClaimsIdentity);
-
-			if (impersonatingUserName != null) return impersonatingUserName;
-
-			impersonatingUserName = TryFindImpersonatingUserName(context.Authentication?.User?.Identity as ClaimsIdentity);
-
-			if (impersonatingUserName != null) return impersonatingUserName;
-
-			if (context.Environment.TryGetValue("ValidatedIdentity", out object identityObject))
-			{
-				impersonatingUserName = TryFindImpersonatingUserName(identityObject as ClaimsIdentity);
-
-				if (impersonatingUserName != null) return impersonatingUserName;
-			}
-
-			return null;
-		}
+			=> BrowserSessionClaimAccessor.FindFirstValue(context, IdentityClaimNames.ImpersonatedBy);
 
 		private void SetFingerprintClaim(ClaimsIdentity identity, string fingerprint)
 		{
@@ -492,7 +454,7 @@ namespace Grammophone.Domos.AspNet.Identity
 
 			SetFingerprintClaim(context.Authentication?.User?.Identity as ClaimsIdentity, fingerprint);
 
-			if (context.Environment.TryGetValue("ValidatedIdentity", out object identityObject))
+			if (context.Environment.TryGetValue(BrowserSessionClaimAccessor.ValidatedIdentityEnvironmentKey, out object identityObject))
 			{
 				SetFingerprintClaim(identityObject as ClaimsIdentity, fingerprint);
 			}

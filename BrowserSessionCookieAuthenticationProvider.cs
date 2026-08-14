@@ -31,7 +31,7 @@ namespace Grammophone.Domos.AspNet.Identity
 
 			if (context.Identity != null)
 			{
-				context.OwinContext.Environment.Add("ValidatedIdentity", context.Identity);
+				context.OwinContext.Environment.Add(BrowserSessionClaimAccessor.ValidatedIdentityEnvironmentKey, context.Identity);
 
 				string fingerprint = context.Identity.FindFirstValue(IdentityClaimNames.Fingerprint);
 

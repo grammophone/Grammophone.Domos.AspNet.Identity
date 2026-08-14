@@ -46,35 +46,44 @@ namespace Grammophone.Domos.AspNet.Identity
 		public override string ConvertIdToString(long key) => key.ToString();
 
 		/// <summary>
-		/// If there is a newly validated entity with associated fingerprint, add the fingerprint to along the standard claims.
+		/// Create the standard claims for the user and, when the request carries a browser session,
+		/// add its fingerprint (and any impersonation marker) so that the identity stays paired with
+		/// the browser session used to resolve its security stamp.
 		/// </summary>
+		/// <remarks>
+		/// The security stamp baked into the identity by the base factory is resolved through the
+		/// current browser-session fingerprint (see <see cref="BrowserSessionUserStore{U}.GetSecurityStampAsync(IdentityUser{U})"/>).
+		/// The fingerprint is resolved here the same way the store resolves it, via
+		/// <see cref="BrowserSessionClaimAccessor"/>, rather than relying solely on the "ValidatedIdentity"
+		/// OWIN environment entry: that entry is only populated during cookie validation, so paths that
+		/// re-issue an identity outside that flow (for example a manual re-issue from a controller) would
+		/// otherwise produce a cookie without a fingerprint, which the security-stamp validator later rejects.
+		/// </remarks>
 		public override async Task<ClaimsIdentity> CreateAsync(UserManager<IdentityUser<U>, long> manager, IdentityUser<U> user, string authenticationType)
 		{
 			var newIdentity = await base.CreateAsync(manager, user, authenticationType);
 
-			if (context.Environment.TryGetValue("ValidatedIdentity", out object existingClaimsIdentityObject))
-			{
-				var existingClaimsIdentity = existingClaimsIdentityObject as ClaimsIdentity;
-
-				if (existingClaimsIdentity != null)
-				{
-					string fingerprint = existingClaimsIdentity.FindFirstValue(IdentityClaimNames.Fingerprint);
-
-					if (fingerprint != null)
-					{
-						newIdentity.AddClaim(new Claim(IdentityClaimNames.Fingerprint, fingerprint));
-					}
-
-					string impersonatedBy = existingClaimsIdentity.FindFirstValue(IdentityClaimNames.ImpersonatedBy);
-
-					if (impersonatedBy != null)
-					{
-						newIdentity.AddClaim(new Claim(IdentityClaimNames.ImpersonatedBy, impersonatedBy));
-					}
-				}
-			}
+			AddClaimIfMissing(newIdentity, IdentityClaimNames.Fingerprint, BrowserSessionClaimAccessor.FindFirstValue(context, IdentityClaimNames.Fingerprint));
+			AddClaimIfMissing(newIdentity, IdentityClaimNames.ImpersonatedBy, BrowserSessionClaimAccessor.FindFirstValue(context, IdentityClaimNames.ImpersonatedBy));
 
 			return newIdentity;
+		}
+
+		#endregion
+
+		#region Private methods
+
+		/// <summary>
+		/// Add a claim of the given <paramref name="claimType"/> and <paramref name="value"/> to
+		/// <paramref name="identity"/>, unless the value is null or a claim of that type already exists.
+		/// </summary>
+		private static void AddClaimIfMissing(ClaimsIdentity identity, string claimType, string value)
+		{
+			if (value == null) return;
+
+			if (identity.FindFirst(claimType) != null) return;
+
+			identity.AddClaim(new Claim(claimType, value));
 		}
 
 		#endregion
