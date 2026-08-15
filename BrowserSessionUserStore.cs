@@ -83,22 +83,27 @@ namespace Grammophone.Domos.AspNet.Identity
 		{
 			string fingerprint = TryFindFingerprintClaim();
 
-			var browserSession = await TryGetOrCreateBrowserSessionAsync(user.DomainUser, fingerprint);
-
-			if (browserSession != null && String.IsNullOrEmpty(TryFindImpersonatingUserName()))
+			using (var transaction = this.DomainContainer.BeginTransaction())
 			{
-				browserSession.SecurityStamp = stamp;
+				// Keep the user record's stamp in sync with the session's. The cookie security-stamp
+				// validator resolves the stamp from the user record during the validation phase (the
+				// per-session lookup is skipped there, because the authenticated user is not yet
+				// established). If only the session copy is updated, the freshly re-issued cookie carries
+				// the new session stamp while validation compares against the stale user-record stamp, and
+				// the user is logged out at the next validation interval.
+				await base.SetSecurityStampAsync(user, stamp);
 
-				await OnSettingSecurityStampAsync(user.DomainUser);
+				var browserSession = await TryGetOrCreateBrowserSessionAsync(user.DomainUser, fingerprint);
 
-				await this.DomainContainer.SaveChangesAsync();
-					
-				return;
+				if (browserSession != null)
+				{
+					browserSession.SecurityStamp = stamp;
+				}
+
+				await transaction.CommitAsync();
 			}
+		}			
 			
-			await base.SetSecurityStampAsync(user, stamp);
-		}
-
 		#endregion
 
 		#region Browser session creation and retrieval
