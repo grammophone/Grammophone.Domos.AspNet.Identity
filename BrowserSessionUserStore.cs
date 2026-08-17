@@ -65,6 +65,8 @@ namespace Grammophone.Domos.AspNet.Identity
 
 				if (browserSession != null)
 				{
+					if (browserSession.IsLoggedOff) return null;
+
 					await OnGettingSecurityStampAsync(user.DomainUser);
 
 					return browserSession.SecurityStamp;
@@ -95,7 +97,7 @@ namespace Grammophone.Domos.AspNet.Identity
 
 				var browserSession = await TryGetOrCreateBrowserSessionAsync(user.DomainUser, fingerprint);
 
-				if (browserSession != null)
+				if (browserSession != null && !browserSession.IsLoggedOff)
 				{
 					browserSession.SecurityStamp = stamp;
 				}
@@ -119,7 +121,17 @@ namespace Grammophone.Domos.AspNet.Identity
 
 			if (!String.IsNullOrEmpty(TryFindImpersonatingUserName())) return null; // If there is an impersonation, do not create a browser session.
 
-			if (context.Authentication?.User?.Identity?.Name != user.UserName) return null; // If the current user is not the given user, do not create a browser session.
+			// Do we have a currently authenticated user?
+			var currentClaimsPrincipal = context.Authentication?.User;
+
+			if (currentClaimsPrincipal != null)
+			{
+				// Only enforce the match when the context already carries an authenticated principal
+				// (e.g. mid-request after sign-in). During cookie validation, HttpContext.User is not
+				// yet populated with the principal being validated, so IsAuthenticated is false here
+				// and the check must be skipped rather than treated as a mismatch.
+				if (currentClaimsPrincipal.Identity?.IsAuthenticated == true && currentClaimsPrincipal.Identity?.Name != user.UserName) return null;
+			}
 
 			BrowserSession browserSession = null;
 			ClientIpAddress clientIpAddress = null;
@@ -192,7 +204,7 @@ namespace Grammophone.Domos.AspNet.Identity
 				//check if the session has been logged out.
 				if (browserSession.IsLoggedOff)
 				{
-					return null;
+					return browserSession;
 				}
 
 				//update last seen
